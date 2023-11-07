@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Sliding Music</title>
+    <meta charset="utf-8">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Tilt+Neon">
+    <style>
+        * {
+            font-family: "Tilt Neon";
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        header {
+            text-align: center;
+            padding: 10px;
+            font-size: 24px;
+            background-color: lightslategray;
+        }
+
+        body {
+            margin: 0;
+            width: 100vw;
+            height: 100vh;
+            background-color: lightslategray;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            border: 1px solid #ddd;
+            border-radius: 12px;
+            background-color: #fff8e1;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            margin: 10px;
+            /*align-items: flex-start;*/
+            padding: 10px;
+        }
+
+        .profile-picture {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+        }
+
+        .assistant-profile {
+            background-image: url("assistant.png");
+            background-size: 30px;
+        }
+
+        .user-profile {
+            background-image: url("user.png");
+            background-size: 30px;
+        }
+
+        .chat {
+            flex-grow: 1;
+            border: 1px solid #ccc;
+            border-radius: 12px;
+            padding: 10px;
+            margin-left: 10px;
+            background-color: #f9f9f9;
+        }
+
+        .user {
+            margin-left: auto;
+            align-self: flex-end;
+        }
+
+        .user-chat {
+            text-align: right;
+        }
+
+        .chat-container {
+            display: flex;
+            flex-direction: column;
+            padding: 10px;
+        }
+
+        footer {
+            position: sticky;
+            bottom: 0;
+            width: 100%;
+            background-color: #f9f9f9;
+            padding: 10px;
+            border-top: 1px solid #ccc;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        input[type="text"] {
+            flex: 1;
+            width: 75%;
+            padding: 8px;
+            border: none;
+            border-radius: 4px;
+            outline: none;
+        }
+
+        #button {
+            margin-left: 10px;
+
+        }
+
+        #box {
+            border: 2px solid rgb(75, 96, 105);
+            position: absolute;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            padding: 6px;
+            width: 300px;
+            height: 200px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center; 
+            justify-content: center;
+            background-color: white;
+            border-radius: 10px;
+        }
+
+        #textarea {
+            width: 100%;
+            height: 75%;
+            margin-top: 10px;
+            margin-bottom: 10px;
+        }
+
+        button {
+        background-color: rgb(54, 99, 113);
+        color: white; 
+        border: none;
+        padding: 10px 20px;
+        border-radius: 4px;
+        cursor: pointer;
+        }
+        #content{
+            display: flex;
+            flex-flow: column;
+            height: 100%;
+        }
+        #all-chats {
+            flex: 1;
+            overflow: auto;
+        }
+    </style>
+    <script src="socket.io/socket.io.js"></script>
+</head>
+
+<body>
+    <div id="box">
+        <p>Tell Me About Yourself!</p>
+        <textarea id="textarea"></textarea>
+        <button id="close">Save</button>
+    </div>
+    <div id = "content">
+        <header>
+            <h1>Swing Music</h1>
+        </header>
+        <div id="all-chats">
+
+        </div>
+        <footer>
+            <input type="text" placeholder="Type your message here..." id="chat">
+            <button id="button">Suggest Videos</button>
+        </footer>
+    </div>
+        
+    <script>
+        let chatID = 0;
+        function getChatHTML(user, message) {
+            return `
+    <div class="chat-container ${user}">
+        <div class="profile-picture ${user}-profile"></div>
+        <div class="chat ${user}-chat" id="chat_number_${++chatID}">${message}</div>
+    </div> <hr>`;
+        }
+
+        function $(e) { return document.getElementById(e); }
+
+        function addChat(user, message) {
+            $("all-chats").innerHTML += getChatHTML(user, message);
+        }
+        function appendToChat(message) {
+            $("chat_number_" + chatID).innerHTML += message;
+        }
+
+        let socket = io();
+
+        $("chat").addEventListener("change", () => {
+            let val = $("chat").value;
+            $("chat").value = "";
+            $("chat").disabled = true;
+
+            addChat("user", val);
+            addChat("assistant", "");
+
+            socket.emit("chat-message", val);
+        });
+
+        socket.on("chat-token", (token) => {
+            appendToChat(token);
+        });
+        socket.on("chat-finished", () => {
+            $("chat").disabled = false;
+        });
+
+        $("button").addEventListener("click", () => {
+            addChat("assistant", "Sure! I'd be happy to suggest a few music videos for you to enjoy!");
+            socket.emit("suggest-videos");
+        });
+
+        socket.on("youtube-result", (result) => {
+            addChat("assistant", "");
+            if (result.items.length > 0) {
+                appendToChat(`<iframe src="https://www.youtube.com/embed/${result.items[0].id}"></iframe>`);
+            } else {
+                appendToChat("Couldn't find video :(");
+            }
+        });
+
+        // BOX CODE
+        $("close").addEventListener("click", () => {
+            $("box").style.display = "none";
+
+            socket.emit("user-info", $("textarea").value);
+        });
+        function showBox() {
+            $("box").style.display = "block";
+        }
+        // END BOX CODE
+
+    </script>
+</body>
+
+</html>
